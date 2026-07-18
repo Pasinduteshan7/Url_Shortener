@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -51,12 +52,27 @@ func main() {
 	// Initialize Gin's default web server engine router framework
 	r := gin.Default()
 
+	// Load HTML Templates
+	r.LoadHTMLGlob("templates/*")
+
+	// FRONTEND ROUTE: Serve the Web UI
+	r.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.html", nil)
+	})
+
 	// ROUTE A: The Endpoint to Shorten a long website link.
 	r.POST("/shorten", func(c *gin.Context) {
 		var req ShortenRequest
 
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid text request format"})
+			return
+		}
+
+		// Basic URL Validation using net/url
+		parsedURL, err := url.ParseRequestURI(req.LongURL)
+		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") || parsedURL.Host == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid URL provided. Must be a valid http or https URL."})
 			return
 		}
 
